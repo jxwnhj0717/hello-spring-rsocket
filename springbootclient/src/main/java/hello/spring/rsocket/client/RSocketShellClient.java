@@ -1,6 +1,7 @@
 package hello.spring.rsocket.client;
 
 import io.rsocket.SocketAcceptor;
+import io.rsocket.core.Resume;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.rsocket.RSocketRequester;
@@ -38,7 +39,7 @@ public class RSocketShellClient  {
         this.rsocketRequester = rsocketRequesterBuilder.setupRoute("shell-client")
                 .setupData(client)
                 .rsocketStrategies(strategies)
-                .rsocketConnector(connector -> connector.acceptor(acceptor))
+                .rsocketConnector(connector -> connector.acceptor(acceptor).resume(new Resume()))
                 .connectTcp("localhost", 7000)
                 .block();
                 //.tcp("localhost", 7000);
