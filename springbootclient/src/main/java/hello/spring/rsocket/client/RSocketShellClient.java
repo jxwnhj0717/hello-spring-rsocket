@@ -42,31 +42,24 @@ public class RSocketShellClient  {
                 .rsocketConnector(connector -> connector.acceptor(acceptor).resume(new Resume()))
                 .connectTcp("localhost", 7000)
                 .block();
-                //.tcp("localhost", 7000);
 
         this.rsocketRequester.rsocket()
                 .onClose()
                 .doOnError(er -> log.error("connection closed.", er))
                 .doFinally(c -> log.info("connection disconnected"))
                 .subscribe();
-
     }
 
     @ShellMethod("Send one request. One response will be printed.")
     public void requestResponse() throws InterruptedException {
         log.info("\nSending one request. Waiting for one response...");
-        Message message = this.rsocketRequester
+        this.rsocketRequester
                 .route("request-response")
                 .data(new Message(CLIENT, REQUEST))
                 .retrieveMono(Message.class)
-                .block();
-        log.info("\nResponse was: {}", message);
-//        this.rsocketRequester
-//                .route("request-response")
-//                .data(new Message(CLIENT, FIRE_AND_FORGET))
-//                .send()
-//                .log()
-//                .block();
+                .subscribe(m -> {
+                    log.info("\nResponse was: {}", m);
+                });
     }
 
     @ShellMethod("Send one request. No response will be returned.")
@@ -76,7 +69,7 @@ public class RSocketShellClient  {
                 .route("fire-and-forget")
                 .data(new Message(CLIENT, FIRE_AND_FORGET))
                 .send()
-                .block();
+                .subscribe();
     }
 
     private Disposable disposable;
