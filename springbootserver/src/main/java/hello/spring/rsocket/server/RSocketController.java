@@ -11,12 +11,14 @@ import reactor.core.publisher.Flux;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Controller
 public class RSocketController {
 
-    private final List<RSocketRequester> CLIENTS = new ArrayList<>();
+    private final Map<String, RSocketRequester> clientMap = new ConcurrentHashMap<>();
 
     static final String SERVER = "Server";
     static final String RESPONSE = "Response";
@@ -47,22 +49,25 @@ public class RSocketController {
     @ConnectMapping("shell-client")
     void connectShellClientAndAskForTelemetry(RSocketRequester requester, @Payload String client) {
         requester.rsocket()
-                .onClose() // (1)
+                .onClose()
                 .doFirst(() -> {
                     log.info("Client: {} CONNECTED.", client);
-                    CLIENTS.add(requester); // (2)
+                    RSocketRequester oldRequester = clientMap.put(client, requester);
+                    if(oldRequester != null) {
+                        oldRequester.rsocket().dispose();
+                    }
                 })
                 .doOnError(error -> {
-                    log.warn("Channel to client {} CLOSED", client); // (3)
+                    log.warn("Channel to client {} CLOSED", client);
                 })
                 .doFinally(consumer -> {
-                    CLIENTS.remove(requester);
-                    log.info("Client {} DISCONNECTED", client); // (4)
+                    clientMap.remove(client);
+                    log.info("Client {} DISCONNECTED", client);
                 })
                 .subscribe();
 
         requester.route("client-status")
-                .data("OPEN")
+                .data(client)
                 .retrieveFlux(String.class)
                 .doOnNext(s -> log.info("client: {} Free Memory: {}.", client, s))
                 .subscribe();

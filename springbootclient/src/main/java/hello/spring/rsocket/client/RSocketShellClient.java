@@ -2,42 +2,66 @@ package hello.spring.rsocket.client;
 
 import io.rsocket.SocketAcceptor;
 import io.rsocket.core.Resume;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.lang.Nullable;
 import org.springframework.messaging.rsocket.RSocketRequester;
 import org.springframework.messaging.rsocket.RSocketStrategies;
 import org.springframework.messaging.rsocket.annotation.support.RSocketMessageHandler;
 import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;
+import org.springframework.shell.standard.ShellOption;
+import org.springframework.util.StringUtils;
 import reactor.core.Disposable;
 
 import java.util.UUID;
 
 @Slf4j
 @ShellComponent
-public class RSocketShellClient  {
+public class RSocketShellClient implements ApplicationContextAware {
 
     static final String CLIENT = "Client";
     static final String REQUEST = "Request";
     static final String FIRE_AND_FORGET = "fire-and-forget";
     static final String STREAM = "Stream";
-    static final String CHANNEL = "Channel";
 
-    private final RSocketRequester rsocketRequester;
+    private ApplicationContext applicationContext;
 
-//    @Autowired
-//    public RSocketShellClient(RSocketRequester.Builder rsocketRequesterBuilder) {
-//        this.rsocketRequester = rsocketRequesterBuilder.tcp("localhost", 7000);
-//    }
+    @Getter
+    @Setter
+    private String clientId;
+    private RSocketRequester rsocketRequester;
 
-    public RSocketShellClient(RSocketRequester.Builder rsocketRequesterBuilder, RSocketStrategies strategies) {
-        String client = UUID.randomUUID().toString();
-        log.info("Connecting using client ID: {}", client);
+    @ShellMethod("connect to server.")
+    public void connect(@ShellOption(defaultValue="") String id) {
+        if(StringUtils.hasLength(clientId)) {
+            log.info("connection established.");
+            return;
+        }
+        if(!StringUtils.hasLength(id)) {
+            id = UUID.randomUUID().toString();
+        }
+        log.info("Connecting using client ID: {}", id);
 
-        SocketAcceptor acceptor = RSocketMessageHandler.responder(strategies, new ClientHandler());
+        RSocketRequester.Builder rsocketRequesterBuilder = applicationContext.getBean(RSocketRequester.Builder.class);
+        RSocketStrategies strategies = applicationContext.getBean(RSocketStrategies.class);
+
+        RSocketMessageHandler handler = new RSocketMessageHandler();
+        handler.setApplicationContext(applicationContext);
+        handler.setRSocketStrategies(strategies);
+        handler.afterPropertiesSet();
+        SocketAcceptor acceptor = handler.responder();
+
+        if(this.rsocketRequester != null) {
+            rsocketRequester.rsocket().dispose();
+        }
 
         this.rsocketRequester = rsocketRequesterBuilder.setupRoute("shell-client")
-                .setupData(client)
+                .setupData(id)
                 .rsocketStrategies(strategies)
                 .rsocketConnector(connector -> connector.acceptor(acceptor).resume(new Resume()))
                 .connectTcp("localhost", 7000)
@@ -49,6 +73,7 @@ public class RSocketShellClient  {
                 .doFinally(c -> log.info("connection disconnected"))
                 .subscribe();
     }
+
 
     @ShellMethod("Send one request. One response will be printed.")
     public void requestResponse() throws InterruptedException {
@@ -91,6 +116,11 @@ public class RSocketShellClient  {
         if(disposable != null) {
             disposable.dispose();
         }
+    }
+
+    @Override
+    public void setApplicationContext(@Nullable ApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
     }
 
 }
