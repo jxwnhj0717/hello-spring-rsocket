@@ -1,4 +1,4 @@
-package hello.spring.rsocket.server;
+package hello.spring.rsocket.server.config;
 
 import io.rsocket.core.RSocketServer;
 import io.rsocket.core.Resume;

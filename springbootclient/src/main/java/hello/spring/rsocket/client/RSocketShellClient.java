@@ -24,7 +24,6 @@ import java.util.UUID;
 @ShellComponent
 public class RSocketShellClient implements ApplicationContextAware {
 
-    static final String CLIENT = "Client";
     static final String REQUEST = "Request";
     static final String FIRE_AND_FORGET = "fire-and-forget";
     static final String STREAM = "Stream";
@@ -60,12 +59,13 @@ public class RSocketShellClient implements ApplicationContextAware {
             rsocketRequester.rsocket().dispose();
         }
 
-        this.rsocketRequester = rsocketRequesterBuilder.setupRoute("shell-client")
-                .setupData(id)
+        RSocketRequester realRSocketRequester = rsocketRequesterBuilder.setupRoute("shell-client")
+                .setupData(new Message(id, "connect"))
                 .rsocketStrategies(strategies)
                 .rsocketConnector(connector -> connector.acceptor(acceptor).resume(new Resume()))
                 .connectTcp("localhost", 7000)
                 .block();
+        this.rsocketRequester = new RSocketClientRequester(id, realRSocketRequester);
 
         this.rsocketRequester.rsocket()
                 .onClose()
@@ -80,7 +80,7 @@ public class RSocketShellClient implements ApplicationContextAware {
         log.info("\nSending one request. Waiting for one response...");
         this.rsocketRequester
                 .route("request-response")
-                .data(new Message(CLIENT, REQUEST))
+                .data(new Message(clientId, REQUEST))
                 .retrieveMono(Message.class)
                 .subscribe(m -> {
                     log.info("\nResponse was: {}", m);
@@ -92,8 +92,9 @@ public class RSocketShellClient implements ApplicationContextAware {
         log.info("\nFire-And-Forget. Sending one request. Expect no response (check server log)...");
         this.rsocketRequester
                 .route("fire-and-forget")
-                .data(new Message(CLIENT, FIRE_AND_FORGET))
+                .data(new Message(clientId, FIRE_AND_FORGET))
                 .send()
+                .doOnSuccess(e -> log.info("\nSent successfully."))
                 .subscribe();
     }
 
@@ -105,7 +106,7 @@ public class RSocketShellClient implements ApplicationContextAware {
         log.info("\nRequest-Stream. Sending one request. Waiting for unlimited responses (Stop process to quit)...");
         this.disposable = this.rsocketRequester
                 .route("stream")
-                .data(new Message(CLIENT, STREAM))
+                .data(new Message(clientId, STREAM))
                 .retrieveFlux(Message.class)
                 .subscribe(e -> log.info("Received {}", e));
     }

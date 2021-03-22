@@ -17,9 +17,9 @@ public class ClientHandler {
     private RSocketShellClient client;
 
     @MessageMapping("client-status")
-    public Flux<String> statusUpdate(String clientId) {
-        log.info("Connection[{}] OPEN", clientId);
-        this.client.setClientId(clientId);
+    public Flux<String> statusUpdate(Message message) {
+        log.info("Connection[{}] OPEN", message.getValue());
+        this.client.setClientId(message.getValue());
         return Flux.interval(Duration.ofSeconds(5))
                 .map(i -> String.valueOf(Runtime.getRuntime().freeMemory()));
     }

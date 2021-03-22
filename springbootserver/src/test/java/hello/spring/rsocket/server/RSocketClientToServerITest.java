@@ -38,7 +38,6 @@ public class RSocketClientToServerITest {
         StepVerifier.create(msg)
                 .consumeNextWith(e -> {
                     assertEquals(e.getOrigin(), RSocketController.SERVER);
-                    assertEquals(e.getIndex(), 0);
                 }).verifyComplete();
     }
 }

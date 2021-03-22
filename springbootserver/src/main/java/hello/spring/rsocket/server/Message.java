@@ -10,20 +10,14 @@ import java.time.Instant;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Message {
+
     private String origin;
-    private String interaction;
-    private long index;
+    private String value;
     private long created = Instant.now().getEpochSecond();
 
-    public Message(String origin, String interaction) {
+    public Message(String origin, String value) {
         this.origin = origin;
-        this.interaction = interaction;
-        this.index = 0;
+        this.value = value;
     }
 
-    public Message(String origin, String interaction, long index) {
-        this.origin = origin;
-        this.interaction = interaction;
-        this.index = index;
-    }
 }
